@@ -8,7 +8,7 @@ has nothing to break. Every spend forces the vault to rotate to a fresh one-time
 Built for **BCH BLAZE 2026**. The verifier depends on the **May 2026 BCH upgrade** (loops),
 the **2025 VM limits** (large stack items, op-cost budget) and **CashTokens** (NFT state).
 
-- Live demo (in-browser signer and attacks): https://parthpawarsnap11-create.github.io/quantumvault/
+- Live demo (in-browser signer and attacks): https://parthpawar1117.github.io/quantumvault/
 - Contract: [`contracts/QuantumVault.cash`](contracts/QuantumVault.cash)
 
 ```
