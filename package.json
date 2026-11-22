@@ -1,0 +1,23 @@
+{
+  "name": "quantumvault",
+  "version": "0.1.0",
+  "description": "Post-quantum Bitcoin Cash vault: Winternitz one-time signatures verified on-chain with BCH 2026 loops",
+  "scripts": {
+    "compile": "cashc contracts/QuantumVault.cash -o artifacts/QuantumVault.json",
+    "test": "vitest run",
+    "demo": "tsx scripts/demo.ts"
+  },
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@bitauth/libauth": "^3.0.0",
+    "cashc": "^0.14.0",
+    "cashscript": "^0.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}
