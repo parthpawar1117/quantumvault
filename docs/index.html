@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuantumVault</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: hero thesis, then a working signer/verifier with the 67-chain grid as the centerpiece */
+:root{
+  --bg:#f4f6f5;--surface:#ffffff;--fg:#14201c;--muted:#5b6b65;--line:#dbe3df;
+  --accent:#0f8a5f;--accent-2:#0b6e8a;--bad:#c2331f;--warn:#a86400;
+  --display:"Space Grotesk",system-ui,sans-serif;--body:"Inter",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root{--bg:#0c1311;--surface:#131d1a;--fg:#e3ece8;--muted:#8fa39b;--line:#24332e;--accent:#3dd598;--accent-2:#4cc3e6;--bad:#ff6b57;--warn:#f0b445;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding:40px max(16px,env(safe-area-inset-right)) 80px max(16px,env(safe-area-inset-left));display:grid;gap:40px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:clamp(34px,6vw,60px);line-height:1.02;letter-spacing:-.01em}
+h2{font-size:24px}
+h3{font-size:16px}
+p{margin:0;max-width:70ch}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+.hero{display:grid;gap:16px}
+.stats{display:flex;flex-wrap:wrap;gap:12px 32px;font-family:var(--mono);font-size:13px}
+.stats b{display:block;font-size:22px;font-family:var(--display);color:var(--fg)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:16px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+label{font-size:12px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:grid;gap:6px}
+input{font:inherit;font-family:var(--mono);font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+button{font:inherit;font-weight:600;font-size:14px;padding:9px 14px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{color:var(--bad);border-color:currentColor}
+button:hover{filter:brightness(1.06)}
+.kv{font-family:var(--mono);font-size:12.5px;word-break:break-all;display:grid;gap:4px}
+.kv span{color:var(--muted)}
+.chains{display:grid;grid-template-columns:repeat(auto-fill,minmax(12px,1fr));gap:3px;align-items:end;height:150px;padding-top:6px}
+.chain{display:flex;flex-direction:column-reverse;height:100%;border-radius:2px;overflow:hidden;background:var(--line)}
+.chain .s{background:var(--accent-2)}
+.chain .v{background:var(--accent)}
+.chain.ck .s{background:var(--warn)}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.verdict{font-family:var(--mono);font-size:14px;padding:12px 14px;border-radius:6px;border:1px solid var(--line)}
+.verdict.ok{color:var(--accent);border-color:var(--accent)}
+.verdict.no{color:var(--bad);border-color:var(--bad)}
+pre{margin:0;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.5;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+.tbl{overflow-x:auto}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+ol,ul{margin:0;padding-left:20px;display:grid;gap:6px;max-width:72ch}
+a{color:var(--accent-2)}
+@media (prefers-reduced-motion:no-preference){.chain>div{transition:height .35s ease}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">BCH BLAZE 2026 · post-quantum covenant</div>
+    <h1>QuantumVault: coins only SHA-256 can unlock</h1>
+    <p>A Bitcoin Cash vault spent with a <strong>Winternitz one-time signature</strong>, verified on-chain using the loops that shipped in the May 2026 upgrade. No elliptic-curve key ever controls the coins, so Shor's algorithm has nothing to attack. Every spend rotates the vault to a fresh one-time key, which the covenant enforces.</p>
+    <div class="stats">
+      <span>signature<b>2,144 B</b></span>
+      <span>hash chains<b>67</b></span>
+      <span>contract<b>237 ops</b></span>
+      <span>typical spend tx<b>~3.1 kB</b></span>
+      <span>tests<b>12 / 12</b></span>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="eyebrow">Try it · runs in your browser</div>
+    <h2>Sign a vault payment, then attack it</h2>
+    <p class="muted">This page implements the same WOTS scheme as <code>src/wots.ts</code> using WebCrypto. The on-chain proof is the CashScript test suite and CLI demo in the repo. To stay self-contained, this page encodes the message as text instead of the exact transaction serialization used by the contract.</p>
+    <div class="grid2">
+      <div style="display:grid;gap:12px">
+        <label for="to">Recipient<input id="to" value="bitcoincash:qq…alice"></label>
+        <label for="amt">Amount (sats)<input id="amt" value="1500000"></label>
+        <label for="chg">Change back to vault (sats)<input id="chg" value="8494000"></label>
+        <div class="row">
+          <button class="primary" id="sign">Sign with key #0</button>
+          <button id="verify">Verify as the covenant</button>
+        </div>
+        <div class="row">
+          <button class="danger" id="atkTo">Attack: redirect to Mallory</button>
+          <button class="danger" id="atkKey">Attack: swap next key</button>
+          <button class="danger" id="atkSig">Attack: flip one bit</button>
+        </div>
+      </div>
+      <div class="kv" id="state"></div>
+    </div>
+    <div>
+      <h3>The 67 hash chains</h3>
+      <div class="chains" id="chains" aria-label="WOTS chain visualization"></div>
+      <div class="legend"><span><i style="background:var(--accent-2)"></i>signer hashes d steps (message digit)</span><span><i style="background:var(--warn)"></i>checksum chains</span><span><i style="background:var(--accent)"></i>covenant finishes 16 − d steps</span></div>
+    </div>
+    <div class="verdict" id="verdict">Press “Sign with key #0”.</div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h2>How a spend works</h2>
+      <ol>
+        <li>The vault UTXO holds a mutable NFT. Its commitment is the 32-byte root of the current one-time key.</li>
+        <li>The wallet signs <code>sha256(outpoint ‖ recipient ‖ amount ‖ change ‖ nextRoot)</code> with WOTS.</li>
+        <li>The covenant rebuilds that message from transaction introspection, so an attacker can't change any field.</li>
+        <li>It finishes all 67 chains in a loop, folds them into a root, and compares the result to the NFT.</li>
+        <li>The change must return to the same contract with the NFT updated to <code>nextRoot</code>. Key #0 is now burned forever.</li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h2>Why it needs BCH 2026</h2>
+      <ul>
+        <li><strong>Loops</strong> (<code>OP_BEGIN/OP_UNTIL</code>): about 600 hash steps fit in a 237-op contract instead of an unrolled script larger than the limit.</li>
+        <li><strong>VM limits</strong> (2025): big stack items and a budget priced per byte. The wallet adds a <em>budget pad</em> so the op-cost budget (800 per unlocking byte) covers the hashing.</li>
+        <li><strong>CashTokens</strong>: the NFT commitment is the vault's state, and it carries the key chain from one spend to the next.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Measured on the BCH_2026_05 VM</h2>
+    <div class="tbl"><table>
+      <tr><th>Chain hashes h</th><th>Op cost</th><th>Hash digest iterations</th><th>Budget pad</th></tr>
+      <tr><td class="n">517</td><td class="n">2,252,846</td><td class="n">658</td><td class="n">~430 B</td></tr>
+      <tr><td class="n">592</td><td class="n">2,354,900</td><td class="n">733</td><td class="n">~560 B</td></tr>
+      <tr><td class="n">667</td><td class="n">2,456,961</td><td class="n">808</td><td class="n">~690 B</td></tr>
+      <tr><td class="n">1,057 (worst case)</td><td class="n">≈ 2.99M (model)</td><td class="n">≈ 1,200</td><td class="n">~1.4 kB</td></tr>
+    </table></div>
+    <p class="muted">Cost ≈ 1.55M + 1,361·h. Even the worst case stays under 4.3 kB, well inside the 100 kB standard transaction limit, for a fee of a few thousand sats.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Threat model</h2>
+    <ul>
+      <li><strong>Quantum attacker:</strong> can break secp256k1, but the vault uses no secp256k1 key. Forging WOTS means inverting SHA-256 (about 2¹²⁸ work even with Grover's algorithm).</li>
+      <li><strong>Mempool front-runner:</strong> sees the signature, but the signature covers the outputs and the next key, so any change makes the covenant fail.</li>
+      <li><strong>Key reuse:</strong> WOTS is one-time. The covenant burns each key by forcing rotation, and the message binds the exact outpoint.</li>
+      <li><strong>Known limits:</strong> this is a proof of concept. Production would add WOTS+ per-chain tweaks against multi-target attacks, an XMSS-style Merkle tree for many keys per root, and a hardware-wallet signer.</li>
+    </ul>
+  </section>
+
+  <footer class="muted" style="font-size:13px">Source, tests and CLI demo: <a href="https://github.com/parthpawarsnap11-create/quantumvault">github.com/parthpawarsnap11-create/quantumvault</a> · MIT</footer>
+</div>
+<script>
+const W = 16, LEN = 67, enc = new TextEncoder();
+const sha = async (b) => new Uint8Array(await crypto.subtle.digest('SHA-256', b));
+const cat = (...a) => { const o = new Uint8Array(a.reduce((s, x) => s + x.length, 0)); let i = 0; for (const x of a) { o.set(x, i); i += x.length; } return o; };
+const hex = (b) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+const short = (h) => h.slice(0, 12) + '…' + h.slice(-8);
+async function chain(x, n) { for (let i = 0; i < n; i++) x = await sha(x); return x; }
+function digits(m) { const d = []; for (const b of m) d.push(b >> 4, b & 15); const c = d.reduce((s, x) => s + 15 - x, 0); d.push((c >> 8) & 15, (c >> 4) & 15, c & 15); return d; }
+async function rootOf(pk) { let a = new Uint8Array(0); for (const p of pk) a = await sha(cat(a, p)); return a; }
+async function keygen(seed, idx) { const sk = []; for (let i = 0; i < LEN; i++) sk.push(await sha(cat(seed, Uint8Array.of(0, 0, 0, idx, i)))); const pk = []; for (const s of sk) pk.push(await chain(s, W)); return { sk, root: await rootOf(pk) }; }
+async function recover(sig, m) { const d = digits(m), pk = []; for (let i = 0; i < LEN; i++) pk.push(await chain(sig.slice(i * 32, i * 32 + 32), W - d[i])); return rootOf(pk); }
+
+const $ = (id) => document.getElementById(id);
+const seed = crypto.getRandomValues(new Uint8Array(32));
+const outpoint = hex(crypto.getRandomValues(new Uint8Array(32))) + ':0';
+let k0, k1, signed = null;
+
+const msgFor = (to, amt, chg, next) => sha(enc.encode(`${outpoint}|${to}|${amt}|${chg}|${hex(next)}`));
+
+function draw(d) {
+  $('chains').innerHTML = d.map((x, i) => `<div class="chain${i >= 64 ? ' ck' : ''}" title="chain ${i}: digit ${x}"><div class="s" style="height:${(x / W) * 100}%"></div><div class="v" style="height:${((W - x) / W) * 100}%"></div></div>`).join('');
+}
+function show(rows) { $('state').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><br>${v}</div>`).join(''); }
+function verdict(ok, text) { const v = $('verdict'); v.className = 'verdict ' + (ok ? 'ok' : 'no'); v.textContent = text; }
+
+async function init() {
+  [k0, k1] = await Promise.all([keygen(seed, 0), keygen(seed, 1)]);
+  show([['vault NFT commitment (key #0 root)', hex(k0.root)], ['next key (#1 root)', hex(k1.root)], ['outpoint', outpoint]]);
+  draw(Array(LEN).fill(0));
+}
+
+$('sign').onclick = async () => {
+  const to = $('to').value, amt = $('amt').value, chg = $('chg').value;
+  const m = await msgFor(to, amt, chg, k1.root), d = digits(m);
+  const parts = []; for (let i = 0; i < LEN; i++) parts.push(await chain(k0.sk[i], d[i]));
+  signed = { sig: cat(...parts), to, amt, chg, next: k1.root };
+  draw(d);
+  show([['vault NFT commitment (key #0 root)', hex(k0.root)], ['message', hex(m)], ['signature (2144 B)', short(hex(signed.sig))], ['chain hashes for covenant', d.reduce((s, x) => s + W - x, 0)]]);
+  verdict(true, 'Signed. Now verify it the way the covenant does, or try an attack.');
+};
+async function check(label, sig, to, amt, chg, next) {
+  if (!signed) return verdict(false, 'Sign first.');
+  const m = await msgFor(to, amt, chg, next);
+  draw(digits(m));
+  const r = await recover(sig, m);
+  const ok = hex(r) === hex(k0.root);
+  verdict(ok, `${label}: recomputed root ${short(hex(r))} ${ok ? '== NFT commitment → spend ACCEPTED' : '!= NFT commitment → covenant REJECTS'}`);
+}
+$('verify').onclick = () => check('Honest spend', signed?.sig, signed?.to, signed?.amt, signed?.chg, signed?.next);
+$('atkTo').onclick = () => check('Redirect to Mallory', signed?.sig, 'bitcoincash:qr…mallory', signed?.amt, signed?.chg, signed?.next);
+$('atkKey').onclick = async () => check('Swap next key', signed?.sig, signed?.to, signed?.amt, signed?.chg, (await keygen(crypto.getRandomValues(new Uint8Array(32)), 0)).root);
+$('atkSig').onclick = () => { if (!signed) return verdict(false, 'Sign first.'); const s = signed.sig.slice(); s[777] ^= 1; check('Bit-flipped signature', s, signed.to, signed.amt, signed.chg, signed.next); };
+init();
+</script>
+</body>
+</html>
