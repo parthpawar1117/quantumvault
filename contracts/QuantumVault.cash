@@ -1,0 +1,88 @@
+pragma cashscript ^0.14.0;
+
+/*
+ * QuantumVault: a Bitcoin Cash vault that can only be spent with a
+ * Winternitz one-time signature (WOTS, w=16, SHA-256). No ECDSA or Schnorr
+ * key ever controls these coins, so Shor's algorithm has nothing to attack.
+ *
+ * State: the vault UTXO carries a mutable NFT whose 32-byte commitment is the
+ * root of the CURRENT one-time public key.
+ *
+ * Every spend:
+ *   output 0 = payment (any address, no tokens)
+ *   output 1 = the vault continues: same contract, same NFT category,
+ *              commitment = root of the NEXT one-time key
+ * The WOTS message commits to the outpoint being spent, the recipient, the
+ * amount, the change and the next key. A mempool observer cannot redirect
+ * funds or swap the next key, and each key signs exactly one message.
+ *
+ * Loops (OP_BEGIN / OP_UNTIL) come from the May 2026 BCH upgrade; without
+ * them this verifier would need ~1000 unrolled hash steps.
+ */
+contract QuantumVault() {
+    function spend(bytes wots, bytes budgetPad) {
+        // budgetPad is ignored data: BCH grants 800 units of op-cost budget per
+        // unlocking byte, so the wallet pads just enough to pay for the hashing.
+        require(budgetPad.length < 8000);
+        require(tx.inputs.length == 1);
+        require(tx.outputs.length == 2);
+        require(wots.length == 2144);
+
+        // Vault continuation must keep the same contract and NFT category.
+        require(tx.outputs[1].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);
+        require(tx.outputs[1].tokenCategory == tx.inputs[this.activeInputIndex].tokenCategory);
+        require(tx.outputs[1].tokenAmount == 0);
+        require(tx.outputs[1].nftCommitment.length == 32);
+        // The payment output must not carry the vault NFT or any token.
+        require(tx.outputs[0].tokenCategory == 0x);
+
+        bytes root = tx.inputs[this.activeInputIndex].nftCommitment;
+
+        bytes msg = sha256(
+            tx.inputs[this.activeInputIndex].outpointTransactionHash
+            + toPaddedBytes(tx.inputs[this.activeInputIndex].outpointIndex, 4)
+            + tx.outputs[0].lockingBytecode
+            + toPaddedBytes(tx.outputs[0].value, 8)
+            + toPaddedBytes(tx.outputs[1].value, 8)
+            + tx.outputs[1].nftCommitment
+        );
+
+        bytes rem = wots;
+        bytes acc = 0x;
+        int csum = 0;
+        for (int i = 0; i < 67; i = i + 1) {
+            int d = 0;
+            if (i < 64) {
+                int b = int(msg.slice(i / 2, i / 2 + 1) + 0x00);
+                if (i % 2 == 0) {
+                    d = b / 16;
+                } else {
+                    d = b % 16;
+                }
+                csum = csum + 15 - d;
+            } else {
+                if (i == 64) {
+                    d = csum / 256;
+                } else {
+                    if (i == 65) {
+                        d = (csum / 16) % 16;
+                    } else {
+                        d = csum % 16;
+                    }
+                }
+            }
+            // Finish chain i: hash the signature element (16 - d) more times.
+            // d <= 15 so this always runs at least once, which lets us use a
+            // tight do-while loop instead of while + IF.
+            bytes x, bytes rest = rem.split(32);
+            rem = rest;
+            int k = d;
+            do {
+                x = sha256(x);
+                k = k + 1;
+            } while (k < 16);
+            acc = sha256(acc + x);
+        }
+        require(acc == root);
+    }
+}

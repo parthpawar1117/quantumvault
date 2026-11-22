@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MockNetworkProvider, randomUtxo, TransactionBuilder, type Utxo } from 'cashscript';
+import { FailedRequireError, MockNetworkProvider, randomUtxo, TransactionBuilder, type Utxo } from 'cashscript';
 import { encodeCashAddress } from '@bitauth/libauth';
 import { keygen } from '../src/wots.js';
-import { loadVault, spendMessage, signSpend, toLockingBytecode } from '../src/vault.js';
+import { budgetPadFor, loadVault, spendMessage, signSpend, toLockingBytecode } from '../src/vault.js';
 
 const seed = new Uint8Array(32).fill(42);
-const addr = (b: number) => encodeCashAddress({ prefix: 'bitcoincash', type: 'p2pkh', payload: new Uint8Array(20).fill(b) }).address;
+const addr = (b: number) => encodeCashAddress({ prefix: 'bchtest', type: 'p2pkh', payload: new Uint8Array(20).fill(b) }).address;
 const ALICE = addr(1);
 const MALLORY = addr(2);
-const FEE = 2000n;
+const MALLORY_TOKEN = encodeCashAddress({ prefix: 'bchtest', type: 'p2pkhWithTokens', payload: new Uint8Array(20).fill(2) }).address;
+const FEE = 6000n;
 
 describe('QuantumVault covenant (BCH_2026_05 VM)', () => {
   let provider: MockNetworkProvider;
@@ -23,6 +24,7 @@ describe('QuantumVault covenant (BCH_2026_05 VM)', () => {
     vault = loadVault(provider);
     utxo = randomUtxo({
       satoshis: 1_000_000n,
+      lockingBytecode: Buffer.from(toLockingBytecode(vault.tokenAddress)).toString('hex'),
       token: { category: '11'.repeat(32), amount: 0n, nft: { capability: 'mutable', commitment: Buffer.from(k0.root).toString('hex') } },
     });
     provider.addUtxo(vault.tokenAddress, utxo);
@@ -30,7 +32,7 @@ describe('QuantumVault covenant (BCH_2026_05 VM)', () => {
 
   const build = (input: Utxo, wots: Uint8Array, to: string, amount: bigint, change: bigint, nextRoot: Uint8Array, changeTo = vault.tokenAddress) =>
     new TransactionBuilder({ provider })
-      .addInput(input, vault.unlock.spend(wots))
+      .addInput(input, vault.unlock.spend(wots, budgetPadFor({ utxo: input, to, amount, change, nextRoot })))
       .addOutput({ to, amount })
       .addOutput({ to: changeTo, amount: change, token: { category: input.token!.category, amount: 0n, nft: { capability: 'mutable', commitment: Buffer.from(nextRoot).toString('hex') } } });
 
@@ -43,25 +45,25 @@ describe('QuantumVault covenant (BCH_2026_05 VM)', () => {
   it('rejects a random (forged) signature', async () => {
     const change = utxo.satoshis - 100_000n - FEE;
     const wots = new Uint8Array(67 * 32).fill(9);
-    await expect(build(utxo, wots, ALICE, 100_000n, change, k1.root).send()).rejects.toThrow();
+    await expect(build(utxo, wots, ALICE, 100_000n, change, k1.root).send()).rejects.toThrow(FailedRequireError);
   });
 
   it('rejects a mempool attacker who swaps the recipient', async () => {
     const change = utxo.satoshis - 100_000n - FEE;
     const wots = signSpend(k0, { utxo, to: ALICE, amount: 100_000n, change, nextRoot: k1.root });
-    await expect(build(utxo, wots, MALLORY, 100_000n, change, k1.root).send()).rejects.toThrow();
+    await expect(build(utxo, wots, MALLORY, 100_000n, change, k1.root).send()).rejects.toThrow(FailedRequireError);
   });
 
   it('rejects an attacker who sets their own next key', async () => {
     const change = utxo.satoshis - 100_000n - FEE;
     const wots = signSpend(k0, { utxo, to: ALICE, amount: 100_000n, change, nextRoot: k1.root });
-    await expect(build(utxo, wots, ALICE, 100_000n, change, k2.root).send()).rejects.toThrow();
+    await expect(build(utxo, wots, ALICE, 100_000n, change, k2.root).send()).rejects.toThrow(FailedRequireError);
   });
 
   it('rejects change sent anywhere except back into the vault', async () => {
     const change = utxo.satoshis - 100_000n - FEE;
     const wots = signSpend(k0, { utxo, to: ALICE, amount: 100_000n, change, nextRoot: k1.root });
-    await expect(build(utxo, wots, ALICE, 100_000n, change, k1.root, MALLORY).send()).rejects.toThrow();
+    await expect(build(utxo, wots, ALICE, 100_000n, change, k1.root, MALLORY_TOKEN).send()).rejects.toThrow(FailedRequireError);
   });
 
   it('chains spends: key 0 is dead after rotation, key 1 works', async () => {
@@ -72,7 +74,7 @@ describe('QuantumVault covenant (BCH_2026_05 VM)', () => {
     expect(next).toBeDefined();
     const change2 = next.satoshis - 50_000n - FEE;
     const reuse = signSpend(k0, { utxo: next, to: ALICE, amount: 50_000n, change: change2, nextRoot: k2.root });
-    await expect(build(next, reuse, ALICE, 50_000n, change2, k2.root).send()).rejects.toThrow();
+    await expect(build(next, reuse, ALICE, 50_000n, change2, k2.root).send()).rejects.toThrow(FailedRequireError);
     const good = signSpend(k1, { utxo: next, to: ALICE, amount: 50_000n, change: change2, nextRoot: k2.root });
     await expect(build(next, good, ALICE, 50_000n, change2, k2.root).send()).resolves.toBeDefined();
   });

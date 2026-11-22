@@ -61,7 +61,7 @@ export function keygen(seed: Uint8Array, index: number): WotsKey {
   const idx = new Uint8Array(4);
   new DataView(idx.buffer).setUint32(0, index);
   const sk = Array.from({ length: WOTS_LEN }, (_, i) => sha256(concat(seed, idx, Uint8Array.of(i))));
-  const pk = sk.map((s) => chain(s, W - 1));
+  const pk = sk.map((s) => chain(s, W)); // chain length 16: verifier always hashes >= 1 time
   return { index, sk, pk, root: rootFromPk(pk) };
 }
 
@@ -71,11 +71,11 @@ export function sign(sk: Uint8Array[], msg: Uint8Array): Uint8Array {
   return concat(...sk.map((s, i) => chain(s, d[i])));
 }
 
-/** Finish every chain (15 - d_i more steps) and fold into the root. */
+/** Finish every chain (16 - d_i more steps, always >= 1) and fold into the root. */
 export function recoverRoot(sig: Uint8Array, msg: Uint8Array): Uint8Array {
   if (sig.length !== WOTS_LEN * N) throw new Error('bad signature length');
   const d = digits(msg);
-  const pk = d.map((di, i) => chain(sig.slice(i * N, i * N + N), W - 1 - di));
+  const pk = d.map((di, i) => chain(sig.slice(i * N, i * N + N), W - di));
   return rootFromPk(pk);
 }
 
