@@ -3,7 +3,7 @@
  * fund a vault, make three payments (rotating one-time keys), and watch
  * three attacks fail inside the covenant.
  */
-import { MockNetworkProvider, randomUtxo, TransactionBuilder, type Utxo } from 'cashscript';
+import { MockNetworkProvider, randomUtxo, TransactionBuilder, type SpendableUtxo } from 'cashscript';
 import { encodeCashAddress } from '@bitauth/libauth';
 import { keygen, type WotsKey } from '../src/wots.js';
 import { budgetPadFor, chainHashCount, loadVault, signSpend, spendMessage, toLockingBytecode } from '../src/vault.js';
@@ -18,7 +18,7 @@ const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
 const short = (s: string) => `${s.slice(0, 10)}…${s.slice(-6)}`;
 
 const keys: WotsKey[] = [0, 1, 2, 3].map((i) => keygen(seed, i));
-let utxo: Utxo = randomUtxo({
+let utxo: SpendableUtxo = randomUtxo({
   satoshis: 10_000_000n,
   lockingBytecode: hex(toLockingBytecode(vault.tokenAddress)),
   token: { category: hex(crypto.getRandomValues(new Uint8Array(32))), amount: 0n, nft: { capability: 'mutable', commitment: hex(keys[0].root) } },
@@ -31,7 +31,7 @@ console.log(` balance         ${utxo.satoshis} sats`);
 console.log(` key #0 root     ${short(hex(keys[0].root))}  (stored in the vault NFT)`);
 console.log(` no ECDSA/Schnorr key controls these coins: SHA-256 only\n`);
 
-const tx = (input: Utxo, wots: Uint8Array, to: string, amount: bigint, change: bigint, nextRoot: Uint8Array, changeTo = vault.tokenAddress) =>
+const tx = (input: SpendableUtxo, wots: Uint8Array, to: string, amount: bigint, change: bigint, nextRoot: Uint8Array, changeTo = vault.tokenAddress) =>
   new TransactionBuilder({ provider })
     .addInput(input, vault.unlock.spend(wots, budgetPadFor({ utxo: input, to, amount, change, nextRoot })))
     .addOutput({ to, amount })
@@ -65,7 +65,7 @@ for (let i = 0; i < payments.length; i++) {
 
   const pad = budgetPadFor(p);
   const sent = await tx(utxo, wots, to, amount, change, keys[i + 1].root).send();
-  utxo = (await provider.getUtxos(vault.tokenAddress)).find((u) => u.txid === sent.txid)!;
+  utxo = (await provider.getUtxos(vault.tokenAddress)).find((u) => u.txid === sent.txid)! as SpendableUtxo;
   console.log(`   ✓ confirmed ${short(sent.txid)}  size ${sent.hex.length / 2} B  chain hashes ${chainHashCount(spendMessage(p))}  budget pad ${pad.length} B`);
   console.log(`   vault now ${utxo.satoshis} sats, NFT rotated to key #${i + 1} root ${short(utxo.token!.nft!.commitment)}\n`);
 }

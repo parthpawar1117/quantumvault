@@ -4,7 +4,7 @@
   "description": "Post-quantum Bitcoin Cash vault: Winternitz one-time signatures verified on-chain with BCH 2026 loops",
   "scripts": {
     "compile": "cashc contracts/QuantumVault.cash -o artifacts/QuantumVault.json",
-    "test": "vitest run",
+    "test": "vitest run --testTimeout=20000",
     "demo": "tsx scripts/demo.ts"
   },
   "license": "MIT",

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { FailedRequireError, MockNetworkProvider, randomUtxo, TransactionBuilder, type Utxo } from 'cashscript';
+import { FailedRequireError, MockNetworkProvider, randomUtxo, TransactionBuilder, type SpendableUtxo } from 'cashscript';
 import { encodeCashAddress } from '@bitauth/libauth';
 import { keygen } from '../src/wots.js';
 import { budgetPadFor, loadVault, spendMessage, signSpend, toLockingBytecode } from '../src/vault.js';
@@ -14,7 +14,7 @@ const FEE = 6000n;
 describe('QuantumVault covenant (BCH_2026_05 VM)', () => {
   let provider: MockNetworkProvider;
   let vault: ReturnType<typeof loadVault>;
-  let utxo: Utxo;
+  let utxo: SpendableUtxo;
   const k0 = keygen(seed, 0);
   const k1 = keygen(seed, 1);
   const k2 = keygen(seed, 2);
@@ -30,7 +30,7 @@ describe('QuantumVault covenant (BCH_2026_05 VM)', () => {
     provider.addUtxo(vault.tokenAddress, utxo);
   });
 
-  const build = (input: Utxo, wots: Uint8Array, to: string, amount: bigint, change: bigint, nextRoot: Uint8Array, changeTo = vault.tokenAddress) =>
+  const build = (input: SpendableUtxo, wots: Uint8Array, to: string, amount: bigint, change: bigint, nextRoot: Uint8Array, changeTo = vault.tokenAddress) =>
     new TransactionBuilder({ provider })
       .addInput(input, vault.unlock.spend(wots, budgetPadFor({ utxo: input, to, amount, change, nextRoot })))
       .addOutput({ to, amount })
@@ -70,7 +70,7 @@ describe('QuantumVault covenant (BCH_2026_05 VM)', () => {
     const change = utxo.satoshis - 100_000n - FEE;
     const wots0 = signSpend(k0, { utxo, to: ALICE, amount: 100_000n, change, nextRoot: k1.root });
     const tx = await build(utxo, wots0, ALICE, 100_000n, change, k1.root).send();
-    const next = (await provider.getUtxos(vault.tokenAddress)).find((u) => u.txid === tx.txid)!;
+    const next = (await provider.getUtxos(vault.tokenAddress)).find((u) => u.txid === tx.txid)! as SpendableUtxo;
     expect(next).toBeDefined();
     const change2 = next.satoshis - 50_000n - FEE;
     const reuse = signSpend(k0, { utxo: next, to: ALICE, amount: 50_000n, change: change2, nextRoot: k2.root });
